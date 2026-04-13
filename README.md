@@ -73,7 +73,28 @@ A interface estará disponível em: http://localhost:5173
 
 ---
 
-## Execução com Docker
+## Execução com Docker Compose (recomendado)
+
+Sobe o front-end e o back-end juntos com um único comando. O repositório do back-end deve estar clonado na mesma pasta pai (`../mvp-backend`).
+
+```bash
+# Sobe front-end (porta 80) + back-end (porta 8000)
+docker compose up --build
+```
+
+- Interface disponível em: http://localhost
+- API disponível em: http://localhost:8000
+- Swagger da API em: http://localhost:8000/docs
+
+Para parar os containers:
+
+```bash
+docker compose down
+```
+
+---
+
+## Execução com Docker (somente o front-end)
 
 ```bash
 # Build da imagem
