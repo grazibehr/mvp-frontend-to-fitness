@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ../mvp-backend
+      dockerfile: Dockerfile
+    container_name: to-fitness-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+      - ALLOWED_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173
+    volumes:
+      - backend-data:/app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: to-fitness-web
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-data:

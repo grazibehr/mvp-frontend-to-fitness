@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FB923C"/>
+      <stop offset="100%" style="stop-color:#F97316"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="45" fill="url(#grad)"/>
+  <g fill="white">
+    <!-- Dumbbell icon -->
+    <rect x="20" y="42" width="15" height="16" rx="3"/>
+    <rect x="65" y="42" width="15" height="16" rx="3"/>
+    <rect x="32" y="46" width="36" height="8" rx="2"/>
+    <!-- Heart beat line -->
+    <path d="M25 70 L35 70 L40 60 L50 80 L60 55 L65 70 L75 70"
+          stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
