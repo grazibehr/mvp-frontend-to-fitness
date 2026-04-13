@@ -204,7 +204,7 @@ const caloriesRemaining = computed(
         <div class="skeleton h-48 rounded-2xl lg:col-span-2"></div>
         <div class="skeleton h-48 rounded-2xl"></div>
       </div>
-      <div class="grid grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div v-for="i in 4" :key="i" class="skeleton h-24 rounded-xl"></div>
       </div>
       <div class="skeleton h-32 rounded-2xl"></div>
@@ -366,7 +366,7 @@ const caloriesRemaining = computed(
           <!-- Ações Rápidas -->
           <div>
             <h2 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Ações rápidas</h2>
-            <div class="grid grid-cols-4 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <button
                 v-for="action in quickActions"
                 :key="action.name"

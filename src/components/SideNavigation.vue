@@ -9,14 +9,16 @@ import {
   BeakerIcon,
   BookOpenIcon,
   UserIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/vue/24/outline'
 import {
   HomeIcon as HomeIconSolid,
   FireIcon as FireIconSolid,
   BeakerIcon as BeakerIconSolid,
   BookOpenIcon as BookOpenIconSolid,
-  UserIcon as UserIconSolid
+  UserIcon as UserIconSolid,
+  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid
 } from '@heroicons/vue/24/solid'
 
 const route = useRoute()
@@ -28,6 +30,7 @@ const navItems = [
   { name: 'home', label: 'Início', icon: HomeIcon, iconActive: HomeIconSolid },
   { name: 'meals', label: 'Refeições', icon: BeakerIcon, iconActive: BeakerIconSolid },
   { name: 'exercises', label: 'Treinos', icon: FireIcon, iconActive: FireIconSolid },
+  { name: 'workouts', label: 'Meus Treinos', icon: ClipboardDocumentListIcon, iconActive: ClipboardDocumentListIconSolid },
   { name: 'recipes', label: 'Receitas', icon: BookOpenIcon, iconActive: BookOpenIconSolid },
   { name: 'profile', label: 'Perfil', icon: UserIcon, iconActive: UserIconSolid }
 ]

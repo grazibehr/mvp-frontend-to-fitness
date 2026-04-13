@@ -93,15 +93,25 @@ async function loadMeals() {
       mealsApi.getSummary(selectedDate.value),
     ]);
 
-    meals.value = Array.isArray(mealsRes) ? mealsRes : [];
+    // Suporta array direto ou { meals: [...] } / { data: [...] }
+    meals.value = Array.isArray(mealsRes)
+      ? mealsRes
+      : Array.isArray(mealsRes?.meals)
+        ? mealsRes.meals
+        : Array.isArray(mealsRes?.data)
+          ? mealsRes.data
+          : [];
+
+    // Suporta { consumed: { total_calories } } ou { total_calories } direto
+    const consumed = summaryRes?.consumed ?? summaryRes ?? {};
     dailySummary.value = {
-      calories: summaryRes.consumed.total_calories || 0,
-      protein: summaryRes.consumed.total_protein || 0,
-      carbs: summaryRes.consumed.total_carbs || 0,
-      fat: summaryRes.consumed.total_fat || 0,
+      calories: consumed.total_calories ?? consumed.calories ?? 0,
+      protein: consumed.total_protein ?? consumed.protein ?? 0,
+      carbs: consumed.total_carbs ?? consumed.carbs ?? 0,
+      fat: consumed.total_fat ?? consumed.fat ?? 0,
     };
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao carregar refeições:", err);
     toast.error("Erro ao carregar refeições");
   } finally {
     loading.value = false;
@@ -117,6 +127,17 @@ async function deleteMeal(mealId) {
   } catch (err) {
     console.error(err);
     toast.error("Erro ao excluir refeição");
+  }
+}
+
+async function deleteItem(itemId) {
+  try {
+    await mealsApi.removeItem(itemId);
+    await loadMeals();
+    toast.success("Item removido");
+  } catch (err) {
+    console.error(err);
+    toast.error("Erro ao remover item");
   }
 }
 
@@ -378,29 +399,65 @@ onMounted(() => {
 
             <!-- Itens -->
             <div v-if="getMealsByType(mealType.value).length > 0" class="space-y-2 flex-1">
-              <div
-                v-for="meal in getMealsByType(mealType.value)"
-                :key="meal.id"
-                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/60 rounded-xl"
-              >
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium text-gray-800 dark:text-white text-sm truncate">{{ meal.name || "Refeição" }}</p>
-                  <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                    <span class="text-xs font-bold text-primary-500">{{ Math.round(meal.total_calories) }} kcal</span>
-                    <span class="text-gray-300 dark:text-gray-600">·</span>
-                    <span v-if="meal.total_protein" class="text-xs text-blue-500">P {{ Math.round(meal.total_protein) }}g</span>
-                    <span v-if="meal.total_carbs" class="text-xs text-amber-500">C {{ Math.round(meal.total_carbs) }}g</span>
-                    <span v-if="meal.total_fat" class="text-xs text-purple-500">G {{ Math.round(meal.total_fat) }}g</span>
+              <template v-for="meal in getMealsByType(mealType.value)" :key="meal.id">
+                <!-- Itens individuais da refeição -->
+                <template v-if="meal.items?.length > 0">
+                  <div
+                    v-for="item in meal.items"
+                    :key="item.id"
+                    class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/60 rounded-xl"
+                  >
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-gray-800 dark:text-white text-sm truncate">
+                        {{ item.food_name || item.name || "Alimento" }}
+                      </p>
+                      <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span class="text-xs font-bold text-primary-500">{{ Math.round(item.calories ?? item.total_calories ?? 0) }} kcal</span>
+                        <template v-if="item.protein || item.total_protein">
+                          <span class="text-gray-300 dark:text-gray-600">·</span>
+                          <span class="text-xs text-blue-500">P {{ Math.round(item.protein ?? item.total_protein) }}g</span>
+                        </template>
+                        <template v-if="item.carbs || item.total_carbs">
+                          <span class="text-xs text-amber-500">C {{ Math.round(item.carbs ?? item.total_carbs) }}g</span>
+                        </template>
+                        <template v-if="item.fat || item.total_fat">
+                          <span class="text-xs text-purple-500">G {{ Math.round(item.fat ?? item.total_fat) }}g</span>
+                        </template>
+                      </div>
+                    </div>
+                    <button
+                      @click="deleteItem(item.id)"
+                      class="p-1.5 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                      aria-label="Remover item"
+                    >
+                      <TrashIcon class="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-                <button
-                  @click="deleteMeal(meal.id)"
-                  class="p-1.5 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                  aria-label="Excluir refeição"
+                </template>
+                <!-- Fallback: meal sem items expandidos -->
+                <div
+                  v-else
+                  class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/60 rounded-xl"
                 >
-                  <TrashIcon class="w-4 h-4" />
-                </button>
-              </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-medium text-gray-800 dark:text-white text-sm truncate">{{ meal.name || "Refeição" }}</p>
+                    <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span class="text-xs font-bold text-primary-500">{{ Math.round(meal.total_calories) }} kcal</span>
+                      <span class="text-gray-300 dark:text-gray-600">·</span>
+                      <span v-if="meal.total_protein" class="text-xs text-blue-500">P {{ Math.round(meal.total_protein) }}g</span>
+                      <span v-if="meal.total_carbs" class="text-xs text-amber-500">C {{ Math.round(meal.total_carbs) }}g</span>
+                      <span v-if="meal.total_fat" class="text-xs text-purple-500">G {{ Math.round(meal.total_fat) }}g</span>
+                    </div>
+                  </div>
+                  <button
+                    @click="deleteMeal(meal.id)"
+                    class="p-1.5 text-gray-300 hover:text-red-500 dark:text-gray-600 dark:hover:text-red-400 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                    aria-label="Excluir refeição"
+                  >
+                    <TrashIcon class="w-4 h-4" />
+                  </button>
+                </div>
+              </template>
             </div>
 
             <!-- Empty state com botão central -->

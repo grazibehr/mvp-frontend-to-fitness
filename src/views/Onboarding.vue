@@ -75,11 +75,15 @@ const canProceed = computed(() => {
     case 3:
       return formData.value.activity_level && formData.value.goal
     case 4:
-      return true // Condições de saúde são opcionais
+      return true
     default:
       return false
   }
 })
+
+function skipOnboarding() {
+  router.push('/')
+}
 
 function nextStep() {
   if (currentStep.value < totalSteps) {
@@ -95,6 +99,45 @@ function prevStep() {
   }
 }
 
+function maskDecimal(value, maxIntegers = 3, maxDecimals = 1) {
+  let v = value.replace(/[^\d,\.]/g, '').replace('.', ',')
+  const parts = v.split(',')
+  parts[0] = parts[0].slice(0, maxIntegers)
+  if (parts.length > 1) {
+    v = parts[0] + ',' + parts[1].replace(/\D/g, '').slice(0, maxDecimals)
+  } else {
+    v = parts[0]
+  }
+  return v
+}
+
+function maskInteger(value, maxDigits = 3) {
+  return value.replace(/\D/g, '').slice(0, maxDigits)
+}
+
+function onWeightInput(e) {
+  const masked = maskDecimal(e.target.value, 3, 1)
+  formData.value.weight = masked
+  e.target.value = masked
+}
+
+function onHeightInput(e) {
+  const masked = maskInteger(e.target.value, 3)
+  formData.value.height = masked
+  e.target.value = masked
+}
+
+function onCircumferenceInput(field, e) {
+  const masked = maskDecimal(e.target.value, 3, 1)
+  formData.value[field] = masked
+  e.target.value = masked
+}
+
+function parseDecimal(value) {
+  if (!value) return null
+  return Number(String(value).replace(',', '.'))
+}
+
 function toggleCondition(code) {
   const index = formData.value.health_conditions.indexOf(code)
   if (index > -1) {
@@ -108,15 +151,14 @@ async function submitOnboarding() {
   loading.value = true
 
   try {
-    // Primeiro atualiza o perfil com dados físicos
     const profileResult = await authStore.updateProfile({
       gender: formData.value.gender,
       age: Number(formData.value.age),
-      weight: Number(formData.value.weight),
-      height: Number(formData.value.height),
-      waist_circumference: formData.value.waist_circumference ? Number(formData.value.waist_circumference) : null,
-      neck_circumference: formData.value.neck_circumference ? Number(formData.value.neck_circumference) : null,
-      hip_circumference: formData.value.hip_circumference ? Number(formData.value.hip_circumference) : null,
+      weight: parseDecimal(formData.value.weight),
+      height: parseDecimal(formData.value.height),
+      waist_circumference: parseDecimal(formData.value.waist_circumference),
+      neck_circumference: parseDecimal(formData.value.neck_circumference),
+      hip_circumference: parseDecimal(formData.value.hip_circumference),
       activity_level: formData.value.activity_level,
       health_conditions: formData.value.health_conditions
     })
@@ -127,7 +169,6 @@ async function submitOnboarding() {
       return
     }
 
-    // Depois define os objetivos
     const goalsResult = await authStore.updateGoals({
       goal: formData.value.goal,
       activity_level: formData.value.activity_level
@@ -148,106 +189,103 @@ async function submitOnboarding() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background-light dark:bg-background-dark flex flex-col">
-    <!-- Header com progresso -->
-    <div class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
-      <div class="max-w-3xl mx-auto px-4 py-4">
-        <div class="flex items-center gap-4 mb-4">
+  <div class="min-h-screen bg-gradient-to-br from-primary-600 to-primary-800 flex flex-col">
+    <!-- Header -->
+    <div class="bg-white/10 backdrop-blur-sm border-b border-white/10">
+      <div class="max-w-2xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between mb-3">
           <button
             v-if="currentStep > 1"
             @click="prevStep"
-            class="p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            class="p-2 -ml-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
             aria-label="Voltar"
           >
             <ArrowLeftIcon class="w-5 h-5" />
           </button>
           <div v-else class="w-9"></div>
-          <div class="flex-1 text-center">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Passo {{ currentStep }} de {{ totalSteps }}</p>
-          </div>
-          <span class="text-sm font-medium text-primary-500 w-9 text-right">{{ Math.round(progress) }}%</span>
+
+          <p class="text-sm text-white/80 font-medium">Passo {{ currentStep }} de {{ totalSteps }}</p>
+
+          <button
+            @click="skipOnboarding"
+            class="text-sm text-white/70 hover:text-white font-medium transition-colors px-3 py-1 rounded-lg hover:bg-white/10"
+          >
+            Pular
+          </button>
         </div>
 
         <!-- Barra de progresso -->
-        <div class="progress-bar">
+        <div class="h-1.5 bg-white/20 rounded-full overflow-hidden">
           <div
-            class="progress-bar-fill"
+            class="h-full bg-white rounded-full transition-all duration-700 ease-out"
             :style="{ width: `${progress}%` }"
           />
         </div>
       </div>
     </div>
 
-    <!-- Conteúdo centralizado -->
-    <div class="flex-1 flex flex-col">
-      <div class="flex-1 w-full max-w-3xl mx-auto px-6 py-8">
-        <!-- Step 1: Dados Básicos -->
+    <!-- Conteudo -->
+    <div class="flex-1 flex flex-col overflow-y-auto">
+      <div class="flex-1 w-full max-w-2xl mx-auto px-4 py-6 sm:py-8">
+
+        <!-- Step 1: Dados Basicos -->
         <div v-if="currentStep === 1" class="animate-fade-in">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-xl flex items-center justify-center">
-              <UserIcon class="w-6 h-6 text-primary-500" />
+            <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+              <UserIcon class="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 class="text-xl font-bold text-gray-800 dark:text-white">Sobre Você</h2>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Informações básicas</p>
+              <h2 class="text-xl font-bold text-white">Sobre Você</h2>
+              <p class="text-white/60 text-sm">Informações básicas</p>
             </div>
           </div>
 
-          <div class="lg:grid lg:grid-cols-2 lg:gap-8 space-y-6 lg:space-y-0">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 sm:p-6 space-y-5">
             <!-- Gênero -->
-            <div class="space-y-6">
-              <div>
-                <label class="input-label">Sexo biológico</label>
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    @click="formData.gender = 'male'"
-                    :class="[
-                      'p-4 rounded-xl border-2 text-left transition-all',
-                      formData.gender === 'male'
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                    ]"
-                  >
-                    <span class="text-2xl mb-2 block">👨</span>
-                    <span class="font-medium text-gray-800 dark:text-white">Masculino</span>
-                  </button>
-                  <button
-                    type="button"
-                    @click="formData.gender = 'female'"
-                    :class="[
-                      'p-4 rounded-xl border-2 text-left transition-all',
-                      formData.gender === 'female'
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                    ]"
-                  >
-                    <span class="text-2xl mb-2 block">👩</span>
-                    <span class="font-medium text-gray-800 dark:text-white">Feminino</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Idade -->
-              <div>
-                <label for="age" class="input-label">Idade</label>
-                <input
-                  id="age"
-                  v-model="formData.age"
-                  type="number"
-                  class="input"
-                  placeholder="Ex: 25"
-                  min="10"
-                  max="120"
-                />
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sexo biológico</label>
+              <div class="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  @click="formData.gender = 'male'"
+                  :class="[
+                    'p-4 rounded-xl border-2 text-left transition-all',
+                    formData.gender === 'male'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  ]"
+                >
+                  <span class="text-2xl mb-2 block">👨</span>
+                  <span class="font-medium text-gray-800 dark:text-white">Masculino</span>
+                </button>
+                <button
+                  type="button"
+                  @click="formData.gender = 'female'"
+                  :class="[
+                    'p-4 rounded-xl border-2 text-left transition-all',
+                    formData.gender === 'female'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  ]"
+                >
+                  <span class="text-2xl mb-2 block">👩</span>
+                  <span class="font-medium text-gray-800 dark:text-white">Feminino</span>
+                </button>
               </div>
             </div>
 
-            <!-- Info desktop -->
-            <div class="hidden lg:flex flex-col justify-center p-6 bg-primary-50 dark:bg-primary-900/20 rounded-2xl">
-              <div class="text-4xl mb-4">👤</div>
-              <h3 class="font-semibold text-gray-800 dark:text-white mb-2">Por que precisamos dessas informações?</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Seu sexo biológico e idade são essenciais para calcular com precisão seu metabolismo basal (TMB) e as calorias diárias ideais para seus objetivos.</p>
+            <!-- Idade -->
+            <div>
+              <label for="age" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Idade</label>
+              <input
+                id="age"
+                v-model="formData.age"
+                type="number"
+                class="input"
+                placeholder="Ex: 25"
+                min="10"
+                max="120"
+              />
             </div>
           </div>
         </div>
@@ -255,82 +293,88 @@ async function submitOnboarding() {
         <!-- Step 2: Medidas Corporais -->
         <div v-if="currentStep === 2" class="animate-fade-in">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-xl flex items-center justify-center">
-              <ScaleIcon class="w-6 h-6 text-primary-500" />
+            <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+              <ScaleIcon class="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 class="text-xl font-bold text-gray-800 dark:text-white">Medidas Corporais</h2>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Para calcular seu IMC e metas</p>
+              <h2 class="text-xl font-bold text-white">Medidas Corporais</h2>
+              <p class="text-white/60 text-sm">Para calcular seu IMC e metas</p>
             </div>
           </div>
 
-          <div class="lg:grid lg:grid-cols-2 lg:gap-8 space-y-5 lg:space-y-0">
-            <div class="space-y-5">
-              <div class="grid grid-cols-2 gap-4">
-                <!-- Peso -->
-                <div>
-                  <label for="weight" class="input-label">Peso (kg)</label>
-                  <input
-                    id="weight"
-                    v-model="formData.weight"
-                    type="number"
-                    step="0.1"
-                    class="input"
-                    placeholder="70.5"
-                  />
-                </div>
-
-                <!-- Altura -->
-                <div>
-                  <label for="height" class="input-label">Altura (cm)</label>
-                  <input
-                    id="height"
-                    v-model="formData.height"
-                    type="number"
-                    class="input"
-                    placeholder="175"
-                  />
-                </div>
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 sm:p-6 space-y-5">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label for="weight" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Peso (kg)</label>
+                <input
+                  id="weight"
+                  :value="formData.weight"
+                  @input="onWeightInput"
+                  type="text"
+                  inputmode="decimal"
+                  class="input"
+                  placeholder="70,5"
+                  maxlength="5"
+                />
+              </div>
+              <div>
+                <label for="height" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Altura (cm)</label>
+                <input
+                  id="height"
+                  :value="formData.height"
+                  @input="onHeightInput"
+                  type="text"
+                  inputmode="numeric"
+                  class="input"
+                  placeholder="175"
+                  maxlength="3"
+                />
               </div>
             </div>
 
-            <!-- Medidas opcionais para gordura corporal -->
-            <div class="pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-100 dark:border-gray-700">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-4">
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-700">
+              <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
                 Opcional: para cálculo de gordura corporal
               </p>
-
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label for="waist" class="input-label">Cintura (cm)</label>
+                  <label for="waist" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Cintura (cm)</label>
                   <input
                     id="waist"
-                    v-model="formData.waist_circumference"
-                    type="number"
+                    :value="formData.waist_circumference"
+                    @input="onCircumferenceInput('waist_circumference', $event)"
+                    type="text"
+                    inputmode="decimal"
                     class="input"
                     placeholder="80"
+                    maxlength="5"
                   />
                 </div>
                 <div>
-                  <label for="neck" class="input-label">Pescoço (cm)</label>
+                  <label for="neck" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pescoço (cm)</label>
                   <input
                     id="neck"
-                    v-model="formData.neck_circumference"
-                    type="number"
+                    :value="formData.neck_circumference"
+                    @input="onCircumferenceInput('neck_circumference', $event)"
+                    type="text"
+                    inputmode="decimal"
                     class="input"
                     placeholder="38"
+                    maxlength="5"
                   />
                 </div>
               </div>
-
               <div v-if="formData.gender === 'female'" class="mt-4">
-                <label for="hip" class="input-label">Quadril (cm)</label>
+                <label for="hip" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quadril (cm)</label>
                 <input
                   id="hip"
-                  v-model="formData.hip_circumference"
-                  type="number"
+                  :value="formData.hip_circumference"
+                  @input="onCircumferenceInput('hip_circumference', $event)"
+                  type="text"
+                  inputmode="decimal"
                   class="input"
                   placeholder="95"
+                  maxlength="5"
                 />
               </div>
             </div>
@@ -340,44 +384,44 @@ async function submitOnboarding() {
         <!-- Step 3: Objetivo e Atividade -->
         <div v-if="currentStep === 3" class="animate-fade-in">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-xl flex items-center justify-center">
-              <FireIcon class="w-6 h-6 text-primary-500" />
+            <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+              <FireIcon class="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 class="text-xl font-bold text-gray-800 dark:text-white">Seu Objetivo</h2>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">O que você quer alcançar?</p>
+              <h2 class="text-xl font-bold text-white">Seu Objetivo</h2>
+              <p class="text-white/60 text-sm">O que você quer alcançar?</p>
             </div>
           </div>
 
-          <div class="lg:grid lg:grid-cols-2 lg:gap-8 space-y-6 lg:space-y-0">
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 sm:p-6 space-y-6">
             <!-- Objetivos -->
             <div>
-              <label class="input-label mb-3">Selecione sua meta</label>
-              <div class="space-y-3">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Selecione sua meta</label>
+              <div class="space-y-2">
                 <button
                   v-for="goal in goals"
                   :key="goal.value"
                   type="button"
                   @click="formData.goal = goal.value"
                   :class="[
-                    'w-full p-4 rounded-xl border-2 text-left transition-all flex items-start gap-4',
+                    'w-full p-3.5 rounded-xl border-2 text-left transition-all flex items-center gap-3',
                     formData.goal === goal.value
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
                       : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                   ]"
                 >
-                  <span class="text-2xl">{{ goal.icon }}</span>
+                  <span class="text-xl">{{ goal.icon }}</span>
                   <div>
-                    <span class="font-semibold text-gray-800 dark:text-white block">{{ goal.label }}</span>
-                    <span class="text-sm text-gray-500 dark:text-gray-400">{{ goal.desc }}</span>
+                    <span class="font-semibold text-gray-800 dark:text-white text-sm block">{{ goal.label }}</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ goal.desc }}</span>
                   </div>
                 </button>
               </div>
             </div>
 
             <!-- Nível de atividade -->
-            <div class="pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-100 dark:border-gray-700">
-              <label class="input-label mb-3">Nível de Atividade Física</label>
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-700">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Nível de Atividade Física</label>
               <div class="space-y-2">
                 <button
                   v-for="level in activityLevels"
@@ -391,7 +435,7 @@ async function submitOnboarding() {
                       : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                   ]"
                 >
-                  <span class="font-medium text-gray-800 dark:text-white block">{{ level.label }}</span>
+                  <span class="font-medium text-gray-800 dark:text-white text-sm block">{{ level.label }}</span>
                   <span class="text-xs text-gray-500 dark:text-gray-400">{{ level.desc }}</span>
                 </button>
               </div>
@@ -402,64 +446,74 @@ async function submitOnboarding() {
         <!-- Step 4: Condições de Saúde -->
         <div v-if="currentStep === 4" class="animate-fade-in">
           <div class="flex items-center gap-3 mb-6">
-            <div class="w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-xl flex items-center justify-center">
-              <HeartIcon class="w-6 h-6 text-primary-500" />
+            <div class="w-11 h-11 bg-white/20 rounded-xl flex items-center justify-center">
+              <HeartIcon class="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 class="text-xl font-bold text-gray-800 dark:text-white">Condições de Saúde</h2>
-              <p class="text-gray-500 dark:text-gray-400 text-sm">Para exercícios seguros (opcional)</p>
+              <h2 class="text-xl font-bold text-white">Condições de Saúde</h2>
+              <p class="text-white/60 text-sm">Para exercícios seguros (opcional)</p>
             </div>
           </div>
 
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Selecione as condições que se aplicam a você. Isso nos ajuda a recomendar exercícios seguros.
-          </p>
-
-          <div class="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <button
-              v-for="condition in healthConditions"
-              :key="condition.code"
-              type="button"
-              @click="toggleCondition(condition.code)"
-              :class="[
-                'p-3 rounded-xl border-2 text-left transition-all',
-                formData.health_conditions.includes(condition.code)
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-              ]"
-            >
-              <span class="font-medium text-sm text-gray-800 dark:text-white">{{ condition.label }}</span>
-            </button>
-          </div>
-
-          <div class="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
-            <p class="text-sm text-amber-800 dark:text-amber-200">
-              Consulte um médico antes de iniciar qualquer programa de exercícios, especialmente se tiver condições de saúde.
+          <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5 sm:p-6">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Selecione as condições que se aplicam a você.
             </p>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <button
+                v-for="condition in healthConditions"
+                :key="condition.code"
+                type="button"
+                @click="toggleCondition(condition.code)"
+                :class="[
+                  'p-3 rounded-xl border-2 text-left transition-all',
+                  formData.health_conditions.includes(condition.code)
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                ]"
+              >
+                <span class="font-medium text-sm text-gray-800 dark:text-white">{{ condition.label }}</span>
+              </button>
+            </div>
+
+            <div class="mt-5 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
+              <p class="text-xs text-amber-700 dark:text-amber-200">
+                Consulte um médico antes de iniciar qualquer programa de exercícios.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Footer com botão -->
-      <div class="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-        <div class="max-w-3xl mx-auto p-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
-          <button
-            @click="nextStep"
-            :disabled="!canProceed || loading"
-            class="btn-primary w-full flex items-center justify-center gap-2"
-          >
-            <span v-if="loading">
-              <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-              </svg>
-            </span>
-            <template v-else>
-              <span>{{ currentStep === totalSteps ? 'Concluir' : 'Continuar' }}</span>
-              <CheckIcon v-if="currentStep === totalSteps" class="w-5 h-5" />
-              <ArrowRightIcon v-else class="w-5 h-5" />
-            </template>
-          </button>
+      <!-- Footer com botões -->
+      <div class="bg-white/10 backdrop-blur-sm border-t border-white/10">
+        <div class="max-w-2xl mx-auto px-4 py-4" style="padding-bottom: max(1rem, env(safe-area-inset-bottom))">
+          <div class="flex gap-3">
+            <button
+              @click="skipOnboarding"
+              class="flex-1 py-3 px-4 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all duration-200"
+            >
+              Pular
+            </button>
+            <button
+              @click="nextStep"
+              :disabled="!canProceed || loading"
+              class="flex-[2] py-3 px-4 bg-white hover:bg-gray-100 text-primary-600 font-semibold rounded-xl shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <span v-if="loading">
+                <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              </span>
+              <template v-else>
+                <span>{{ currentStep === totalSteps ? 'Concluir' : 'Continuar' }}</span>
+                <CheckIcon v-if="currentStep === totalSteps" class="w-5 h-5" />
+                <ArrowRightIcon v-else class="w-5 h-5" />
+              </template>
+            </button>
+          </div>
         </div>
       </div>
     </div>

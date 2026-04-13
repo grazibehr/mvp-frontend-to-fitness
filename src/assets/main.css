@@ -9,7 +9,7 @@
   }
 
   body {
-    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-50;
+    @apply text-gray-800 dark:text-gray-50;
     @apply transition-colors duration-200;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
@@ -204,11 +204,6 @@
   .page-container {
     @apply min-h-screen pb-24 px-4 pt-5;
     @apply lg:pb-8 lg:px-8 lg:pt-8;
-  }
-
-  /* Main content wrapper */
-  .main-content {
-    @apply lg:ml-64;
   }
 
   /* Header */
